@@ -334,7 +334,7 @@ if transformers_available:
 def load_gan_model():
     """Load GAN question generation model"""
     if not transformers_available:
-        st.warning("⚠️ PyTorch not available. Cannot load GAN model.")
+        st.warning("PyTorch not available. Cannot load GAN model.")
         return None
     
     try:
@@ -352,7 +352,7 @@ def load_gan_model():
             model.eval()
             return model
         else:
-            st.warning("⚠️ GAN model weights file not found. Using API backend.")
+            st.warning("GAN model weights file not found. Using API backend.")
             return None
             
     except Exception as e:
@@ -362,7 +362,7 @@ def load_gan_model():
 def load_vae_model():
     """Load VAE diagram compression model"""
     if not tf_available:
-        st.warning("⚠️ TensorFlow not available. Cannot load VAE model.")
+        st.warning("TensorFlow not available. Cannot load VAE model.")
         return None
     
     try:
@@ -374,7 +374,7 @@ def load_vae_model():
             decoder = keras.models.load_model(MODEL_PATHS["decoder"], compile=False)
             return {"encoder": encoder, "decoder": decoder}
         else:
-            st.warning("⚠️ VAE model files not found. Using simulation mode.")
+            st.warning("VAE model files not found. Using simulation mode.")
             return None
     except Exception as e:
         st.error(f"❌ Error loading VAE model: {e}")
@@ -386,7 +386,7 @@ def load_transformer_model():
         if os.path.exists(MODEL_PATHS["transformer"]):
             return True
         else:
-            st.warning("⚠️ Transformer model file not found. Using API backend.")
+            st.warning("Transformer model file not found. Using API backend.")
             return None
     except Exception as e:
         st.error(f"❌ Error loading Transformer model: {e}")
@@ -686,7 +686,7 @@ if "GAN" in selected_model:
                     else:
                         st.error("❌ Backend service unavailable")
             else:
-                st.warning("⚠️ Please enter at least 20 characters of content")
+                st.warning("Please enter at least 20 characters of content")
 
 # VAE - Diagram Compression
 elif "VAE" in selected_model:
@@ -886,7 +886,7 @@ Format each section with clear bullet points. Be specific and educational."""
                                     st.error(f"❌ Error generating analysis: {e}")
                                     st.info("💡 Analysis feature requires backend service")
                             else:
-                                st.warning("⚠️ Backend service unavailable for image analysis")
+                                st.warning("Backend service unavailable for image analysis")
                         
                         # Show technical details
                         with st.expander("🔬 Technical Details"):
@@ -950,7 +950,7 @@ elif "Transformer" in selected_model:
                     else:
                         st.error("❌ Backend service unavailable")
             else:
-                st.warning("⚠️ Please enter at least 20 characters of content")
+                st.warning("Please enter at least 20 characters of content")
 
 # Diffusion - Text-to-Illustration
 elif "Diffusion" in selected_model:
@@ -1005,7 +1005,7 @@ elif "Diffusion" in selected_model:
                                     
                                     # Validate SVG has essential attributes
                                     if 'viewBox' not in clean_svg and 'viewbox' not in clean_svg.lower():
-                                        st.warning("⚠️ SVG missing viewBox - attempting to add default viewBox")
+                                        st.warning("SVG missing viewBox - attempting to add default viewBox")
                                         clean_svg = clean_svg.replace('<svg', '<svg viewBox="0 0 800 600"', 1)
                                     
                                     # Check if SVG has actual content (not just empty tags)
@@ -1228,7 +1228,7 @@ IMPORTANT: Do NOT use markdown headers (# or ##). Instead, use the numbered form
                                             mime="text/plain"
                                         )
                             else:
-                                st.warning("⚠️ Could not extract valid SVG code")
+                                st.warning("Could not extract valid SVG code")
                                 st.info("📄 Generated content:")
                                 with st.expander("View Generated Response"):
                                     st.code(svg_code, language="html")
@@ -1239,7 +1239,7 @@ IMPORTANT: Do NOT use markdown headers (# or ##). Instead, use the numbered form
                     else:
                         st.error("❌ Backend service unavailable")
             else:
-                st.warning("⚠️ Please provide a detailed description (at least 10 characters)")
+                st.warning("Please provide a detailed description (at least 10 characters)")
     
     # Examples section
     with st.expander("💡 See Example Topics"):
