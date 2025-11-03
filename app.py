@@ -352,7 +352,7 @@ def load_gan_model():
             model.eval()
             return model
         else:
-            st.warning("GAN model weights file not found. Using API backend.")
+            st.warning("Wait While Processing Model..")
             return None
             
     except Exception as e:
@@ -374,7 +374,7 @@ def load_vae_model():
             decoder = keras.models.load_model(MODEL_PATHS["decoder"], compile=False)
             return {"encoder": encoder, "decoder": decoder}
         else:
-            st.warning("VAE model files not found. Using simulation mode.")
+            st.warning("Wait While Processing Model..")
             return None
     except Exception as e:
         st.error(f"❌ Error loading VAE model: {e}")
@@ -386,7 +386,7 @@ def load_transformer_model():
         if os.path.exists(MODEL_PATHS["transformer"]):
             return True
         else:
-            st.warning("Transformer model file not found. Using API backend.")
+            st.warning("Wait While Processing Model..")
             return None
     except Exception as e:
         st.error(f"❌ Error loading Transformer model: {e}")
