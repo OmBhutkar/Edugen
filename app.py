@@ -573,7 +573,7 @@ st.markdown('<p class="sub-header">The Learning Assistant - Powered by Advanced 
 backend_client = init_backend_client()
 
 # Sidebar - Model Selection
-st.sidebar.markdown("## 🤖 AI Models")
+st.sidebar.markdown("## 🛰️ AI Models")
 st.sidebar.markdown("Select a model to activate:")
 
 selected_model = st.sidebar.selectbox(
@@ -669,7 +669,7 @@ if "GAN" in selected_model:
     with col2:
         if st.button("🚀 Generate Questions", key="gan_btn", type="primary"):
             if text_input and len(text_input.strip()) > 20:
-                with st.spinner("🤖 GAN Model processing your content..."):
+                with st.spinner("🛰️ GAN Model processing your content..."):
                     if backend_client:
                         result = process_with_backend(backend_client, text_input, "questions", num_questions)
                         
@@ -712,7 +712,7 @@ elif "VAE" in selected_model:
                                          help="Higher values = more compression (lower quality)")
             
             if st.button("🚀 Process with VAE", key="vae_btn", type="primary"):
-                with st.spinner("🤖 VAE Model encoding and compressing..."):
+                with st.spinner("🛰️ VAE Model encoding and compressing..."):
                     try:
                         # Convert image to RGB if needed
                         if image.mode != 'RGB':
@@ -778,7 +778,7 @@ elif "VAE" in selected_model:
                         st.markdown("---")
                         st.markdown('<p style="font-size: 1.8rem; font-weight: 700; color: #4a5fc1; margin-bottom: 1rem;">🔍 AI Image Analysis</p>', unsafe_allow_html=True)
                         
-                        with st.spinner("🤖 Analyzing image content and compression effects..."):
+                        with st.spinner("🛰️ Analyzing image content and compression effects..."):
                             if backend_client:
                                 try:
                                     # Create a detailed analysis prompt
@@ -931,7 +931,7 @@ elif "Transformer" in selected_model:
             if text_input and len(text_input.strip()) > 20:
                 task = "summary" if "Summary" in task_type else "notes"
                 
-                with st.spinner(f"🤖 Transformer Model generating {task}..."):
+                with st.spinner(f"🛰️ Transformer Model generating {task}..."):
                     if backend_client:
                         result = process_with_backend(backend_client, text_input, task)
                         
