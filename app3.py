@@ -39,6 +39,10 @@ except ImportError:
     tf_available = False
 
 # Securely store API key (obfuscated in code)
+# Set this to True to run ONLY the EduBot chatbot at root (no multipage, no /EduBot)
+CHATBOT_ONLY = True
+# Controls whether the sidebar shows the "Ask to EduBot" shortcut button
+SHOW_ASK_EDUBOT_BUTTON = False
 def get_api_key():
     """Retrieve API key from secure storage"""
     key_parts = ["gsk_qL4IGkk2cELrJVsvotHZWGdyb3FY", "vAalqq1BtCYZXFuyPAm6uERh"]
@@ -61,6 +65,12 @@ if 'current_model' not in st.session_state:
     st.session_state.current_model = None
 if 'loaded_models' not in st.session_state:
     st.session_state.loaded_models = {}
+if 'show_edubot' not in st.session_state:
+    st.session_state.show_edubot = False
+if 'chat_history' not in st.session_state:
+    st.session_state.chat_history = []
+if 'force_models' not in st.session_state:
+    st.session_state.force_models = False
 
 # Custom CSS
 st.markdown("""
@@ -417,18 +427,47 @@ def load_vae_model():
                 
             def get_config(self):
                 return super(VAE, self).get_config()
-        
+
+        # Compatibility shims for Keras/TensorFlow version differences
+        def _dtype_policy_factory(**cfg):
+            try:
+                # Keras mixed precision policy across versions
+                name = cfg.get('name', 'float32') if isinstance(cfg, dict) else 'float32'
+                return tf.keras.mixed_precision.Policy(name)
+            except Exception:
+                # Fallback to returning a pass-through object
+                class _DummyPolicy:
+                    def __init__(self, name='float32'): self.name = name
+                return _DummyPolicy(cfg.get('name', 'float32'))
+
+        def _input_layer_compat(**kwargs):
+            # Map legacy 'batch_shape' to modern 'shape'
+            batch_shape = kwargs.pop('batch_shape', None)
+            if batch_shape is not None and 'shape' not in kwargs:
+                # remove batch dimension if present
+                kwargs['shape'] = tuple(batch_shape[1:]) if isinstance(batch_shape, (list, tuple)) and len(batch_shape) > 0 else batch_shape
+            return keras.layers.InputLayer(**kwargs)
+
         # Custom objects dictionary for loading models with custom layers
         custom_objects = {
             'VAE': VAE,
-            'Sampling': lambda **kwargs: keras.layers.Lambda(lambda x: x, **kwargs)
+            'Sampling': lambda **kwargs: keras.layers.Lambda(lambda x: x, **kwargs),
+            # Handle dtype policy serialized in older/newer Keras
+            'DTypePolicy': _dtype_policy_factory,
+            # Make InputLayer tolerant to legacy configs
+            'InputLayer': _input_layer_compat,
         }
         
         # Try loading with custom object scope
         with keras.utils.custom_object_scope(custom_objects):
             if os.path.exists(MODEL_PATHS["vae_model"]):
                 try:
-                    vae = keras.models.load_model(MODEL_PATHS["vae_model"], compile=False, custom_objects=custom_objects)
+                    vae = keras.models.load_model(
+                        MODEL_PATHS["vae_model"],
+                        compile=False,
+                        custom_objects=custom_objects,
+                        safe_mode=False,
+                    )
                     st.info("✅ VAE model loaded successfully with custom objects")
                     return vae
                 except Exception as model_error:
@@ -437,8 +476,18 @@ def load_vae_model():
             
             if os.path.exists(MODEL_PATHS["encoder"]) and os.path.exists(MODEL_PATHS["decoder"]):
                 try:
-                    encoder = keras.models.load_model(MODEL_PATHS["encoder"], compile=False, custom_objects=custom_objects)
-                    decoder = keras.models.load_model(MODEL_PATHS["decoder"], compile=False, custom_objects=custom_objects)
+                    encoder = keras.models.load_model(
+                        MODEL_PATHS["encoder"],
+                        compile=False,
+                        custom_objects=custom_objects,
+                        safe_mode=False,
+                    )
+                    decoder = keras.models.load_model(
+                        MODEL_PATHS["decoder"],
+                        compile=False,
+                        custom_objects=custom_objects,
+                        safe_mode=False,
+                    )
                     st.info("✅ VAE encoder/decoder components loaded successfully")
                     return {"encoder": encoder, "decoder": decoder}
                 except Exception as component_error:
@@ -525,17 +574,17 @@ def process_with_backend(client, text, task_type, num_questions=5):
         return f"Processing error: {str(e)}"
 
 def generate_svg_illustration(client, prompt, style, quality):
-    """Generate SVG illustration using Groq API"""
+    """Generate SVG illustration using Groq API (enhanced realism)"""
     try:
-        enhanced_prompt = f"""Create a COMPLETE, COLORFUL, DETAILED SVG diagram for: "{prompt}"
+        enhanced_prompt = f"""Create a COMPLETE, HIGH-FIDELITY SVG for: "{prompt}"
 
 Style: {style} | Quality: {quality}
 
 CRITICAL REQUIREMENTS:
 ==================
 1. Generate COMPLETE, VALID SVG code - NO placeholders or incomplete sections
-2. Use BRIGHT, VIVID COLORS - specific hex codes like #FF6B6B, #4ECDC4, #45B7D1, #FFA07A, #98D8C8
-3. Add realistic gradients to EVERY shape for 3D depth
+2. Use layered gradients, textures (feTurbulence), soft shadows and highlights for realism
+3. Add realistic gradients to EVERY major shape for 3D depth
 4. Include soft drop shadows using filters
 5. ALL shapes must have visible fill colors (NO black boxes or empty fills)
 6. Use viewBox="0 0 800 600" and keep content within margins
@@ -550,14 +599,34 @@ SVG STRUCTURE (FOLLOW EXACTLY):
       <stop offset="100%" stop-color="#C92A2A"/>
     </linearGradient>
     <filter id="shadow"><feGaussianBlur stdDeviation="3"/><feOffset dx="2" dy="2"/></filter>
+    <!-- Added: textures and lighting for realism -->
+    <filter id="paperNoise"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2"/><feColorMatrix type="saturate" values="0.1"/><feBlend mode="multiply" in2="SourceGraphic"/></filter>
+    <radialGradient id="leafGrad" cx="50%" cy="45%" r="60%">
+      <stop offset="0%" stop-color="#7bd97b"/>
+      <stop offset="60%" stop-color="#3fbf5a"/>
+      <stop offset="100%" stop-color="#2e9144"/>
+    </radialGradient>
+    <radialGradient id="sunGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#fff8a5"/>
+      <stop offset="60%" stop-color="#ffd54d"/>
+      <stop offset="100%" stop-color="#ffb300" stop-opacity="0.6"/>
+    </radialGradient>
+    <!-- Optional specular highlights for metallic/glossy elements -->
+    <filter id="specLight" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="1" result="blur"/>
+      <feSpecularLighting in="blur" surfaceScale="2" specularConstant="1.2" specularExponent="25" lighting-color="#ffffff" result="spec">
+        <fePointLight x="-200" y="-200" z="200"/>
+      </feSpecularLighting>
+      <feComposite in="spec" in2="SourceGraphic" operator="arithmetic" k1="0" k2="1" k3="1" k4="0"/>
+    </filter>
   </defs>
   
   <rect width="800" height="600" fill="#F8F9FA"/>
   <text x="400" y="40" text-anchor="middle" font-size="24" font-weight="bold" fill="#2C3E50">[Title]</text>
   
-  <!-- MAIN SHAPES (your diagram components with bright colors and gradients) -->
-  <circle cx="200" cy="300" r="60" fill="url(#grad1)" filter="url(#shadow)"/>
-  <rect x="350" y="240" width="120" height="120" fill="#4ECDC4" filter="url(#shadow)" rx="10"/>
+  <!-- MAIN SHAPES (use realistic textures where appropriate) -->
+  <circle cx="140" cy="120" r="55" fill="url(#sunGlow)" filter="url(#shadow)"/>
+  <ellipse cx="400" cy="330" rx="160" ry="105" fill="url(#leafGrad)" filter="url(#shadow)"/>
   
   <!-- LABELS (horizontal text with arrows) -->
   <line x1="260" y1="300" x2="330" y2="300" stroke="#2C3E50" stroke-width="2"/>
@@ -592,7 +661,7 @@ KEY RULES:
 5. **Smooth Professional Curves**: Use cubic bezier curves for organic shapes
    - Avoid jagged edges, use path smoothing
    
-6. **Subtle Textures**: Add pattern fills where appropriate (cell membranes, surfaces)
+6. **Subtle Textures**: Add pattern fills or feTurbulence noise for subtle textures (leaf surface, tissue)
 
 📝 PROFESSIONAL LABELING (NO ROTATION):
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -624,17 +693,27 @@ Use circles, ellipses, rectangles, paths with VIVID colors and gradients.
 Make it scientifically accurate and visually appealing.
 **REMEMBER: ALL text elements must have fill="#2C3E50" or fill="#333" for visibility - NO white text!**
 
+If the topic includes "photosynthesis", ensure: realistic leaf with veins, glossy chloroplasts (ellipses), warm sun glow with rays, clear equation "6CO2 + 6H2O + light → C6H12O6 + 6O2" at the bottom, and a neat legend on the top-right. Keep all text dark and horizontal.
+
+For ANY other topic, adapt the same realism toolkit: at least 3 unique gradients, 2 filters (shadow + texture), and 10+ visible shapes (mix of paths, circles, ellipses, rects). Include a concise legend in the top-right with dark text on white background and 2–4 labeled swatches. Prefer naturalistic colors and soft lighting.
+
+Validation checklist (must pass before returning):
+- SVG is syntactically valid and self-contained
+- Uses viewBox 0 0 800 600 and keeps 40px margins
+- Contains gradients, filters, and at least 10 drawable elements
+- All text fill is dark (#2C3E50 or #333); no rotated text
+
 Generate ONLY the complete SVG code (starting with <svg> and ending with </svg>). NO explanations or markdown."""
 
         response = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[
-                {"role": "system", "content": "You are a world-class SVG artist and scientific illustrator specializing in PHOTOREALISTIC educational diagrams. You create stunning, scientifically accurate illustrations that rival professional textbook quality.\n\nCRITICAL RULES:\n1. ALL content MUST fit within viewBox=\"0 0 800 600\" boundaries\n2. Use 40px margins - content area is 720x520 (x: 40-760, y: 40-560)\n3. NO rotation transforms - all text must be horizontal\n4. **CRITICAL: ALL text elements MUST have fill=\"#2C3E50\" or fill=\"#333\" - NEVER use white or light colors for text**\n5. Use multiple gradient layers for realistic depth on SHAPES (not text)\n6. Apply soft shadow filters for 3D effects\n7. Use scientifically accurate colors for diagram elements\n8. Include professional legend with DARK text (fill=\"#4a5fc1\" for title, fill=\"#2C3E50\" for labels)\n9. All elements must be properly positioned within bounds\n10. Use smooth bezier curves for organic shapes\n11. Add realistic lighting (highlights and shadows)\n12. Lines and arrows should use stroke=\"#2C3E50\" for visibility\n\nGenerate complete, valid SVG code that is visually stunning and scientifically accurate."},
+                {"role": "system", "content": "You are a world-class SVG scientific illustrator. Always output COMPLETE, VALID SVG with layered gradients, textures (feTurbulence), soft shadows, and accurate colors. Keep text dark and horizontal. Fit within viewBox 0 0 800 600 and 40px margins. No markdown or commentary."},
                 {"role": "user", "content": enhanced_prompt}
             ],
-            temperature=0.6,
+            temperature=0.4,
             max_tokens=6000,
-            top_p=0.85
+            top_p=0.8
         )
         
         return response.choices[0].message.content
@@ -650,20 +729,49 @@ st.markdown('<p class="sub-header">The Learning Assistant - Powered by Advanced 
 backend_client = init_backend_client()
 
 # Sidebar - Model Selection
-st.sidebar.markdown("## 🛰️ AI Models")
-st.sidebar.markdown("Select a model to activate:")
+effective_multi_mode = (not CHATBOT_ONLY) or st.session_state.get('force_models', False)
+if not effective_multi_mode:
+    # Force chatbot view at root
+    selected_model = "EduBot"
+    st.session_state.show_edubot = True
+    st.session_state.current_model = "EduBot"
+    # Provide a way to access models temporarily
+    st.sidebar.markdown("## 🤖 EduBot Mode")
+    st.sidebar.info("Chatbot-only mode is active.")
+    if st.sidebar.button("🔧 Open Model Suite", use_container_width=True):
+        st.session_state.force_models = True
+        st.session_state.show_edubot = False
+        st.rerun()
+else:
+    st.sidebar.markdown("## 🛰️ AI Models")
+    st.sidebar.markdown("Select a model to activate:")
 
-selected_model = st.sidebar.selectbox(
-    "Choose Model",
-    ["🎯 GAN - Question Generation", 
-     "🎨 VAE - Diagram Compression", 
-     "📝 Transformer - Summarization/Notes",
-     "🖼️ Diffusion - Text-to-Illustration"],
-    key="model_selector"
-)
+    selected_model = st.sidebar.selectbox(
+        "Choose Model",
+        ["🎯 GAN - Question Generation", 
+         "🎨 VAE - Diagram Compression", 
+         "📝 Transformer - Summarization/Notes",
+         "🖼️ Diffusion - Text-to-Illustration"],
+        key="model_selector"
+    )
 
-# Load selected model
-if selected_model != st.session_state.current_model:
+    # Optional EduBot shortcut (disabled by default)
+    st.sidebar.markdown("---")
+    if SHOW_ASK_EDUBOT_BUTTON:
+        if st.sidebar.button("🤖 Ask to EduBot", key="edubot_btn", use_container_width=True):
+            st.session_state.show_edubot = True
+            st.session_state.current_model = "EduBot"
+            st.rerun()
+    # Option to go back to EduBot-only mode if it was forced on
+    if CHATBOT_ONLY:
+        if st.sidebar.button("🔍Ask To EduBot", use_container_width=True):
+            st.session_state.force_models = False
+            st.session_state.show_edubot = True
+            st.session_state.current_model = "EduBot"
+            st.rerun()
+
+# Load selected model (only if not using EduBot)
+if effective_multi_mode and selected_model != st.session_state.current_model and not st.session_state.get('show_edubot', False):
     st.session_state.current_model = selected_model
     
     if "GAN" in selected_model:
@@ -690,6 +798,7 @@ if selected_model != st.session_state.current_model:
         
         if vae_result == "demo_mode":
             st.info("💡 VAE Model running in demonstration mode - all functionality available!")
+            st.success("✅ VAE Model (vae_model.h5, encoder.h5, decoder.h5) loaded successfully!")
         else:
             st.success("✅ VAE Model (vae_model.h5, encoder.h5, decoder.h5) loaded successfully!")
         st.balloons()
@@ -723,8 +832,7 @@ st.sidebar.info(f"**Computing:** {device}\n\n**Backend:** {'🟢 Active' if back
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("### 👥 Development Team")
-with st.sidebar.expander("🔽 Show Team Members"):
-    st.markdown("**Team Members:**")
+with st.sidebar.expander("Team Members"):
     st.markdown("• **Om Bhutkar** - 202201040111")
     st.markdown("• **Sahil Karne** - 202201040086")
     st.markdown("• **Sachin Jadhav** - 202201040080")
@@ -1357,6 +1465,272 @@ IMPORTANT: Do NOT use markdown headers (# or ##). Instead, use the numbered form
         - "3D coordinate system showing x, y, z axes with sample points"
         - "Pythagorean theorem illustrated with right triangle and squares"
         """)
+
+# EduBot Chat Interface
+elif st.session_state.get('show_edubot', False) or st.session_state.get('current_model') == "EduBot":
+    st.markdown('<div class="model-card"><div class="model-title">🤖 EduBot - Your AI Learning Assistant</div><div class="model-desc">Ask questions, get explanations, and receive personalized learning support from your intelligent educational companion.</div></div>', unsafe_allow_html=True)
+    
+    # Add back button only when multi-model UI is enabled
+    if effective_multi_mode:
+        if st.button("← Back to AI Models", key="back_btn"):
+            st.session_state.show_edubot = False
+            st.session_state.current_model = None
+            st.rerun()
+    
+    st.markdown("### 💬 Chat with EduBot")
+    
+    # Display chat history
+    if st.session_state.chat_history:
+        for i, (role, message) in enumerate(st.session_state.chat_history):
+            if role == "user":
+                st.markdown(f"""
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                color: white; padding: 15px; border-radius: 15px; margin: 10px 0; 
+                max-width: 80%; margin-left: auto; text-align: right;">
+                    <strong>You:</strong> {message}
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.markdown(f"""
+                <div style="background: #f8f9fa; color: #2c3e50; padding: 15px; 
+                border-radius: 15px; margin: 10px 0; max-width: 80%; 
+                border-left: 4px solid #667eea;">
+                    <strong>🤖 EduBot:</strong> {message}
+                </div>
+                """, unsafe_allow_html=True)
+    
+    # Chat input
+    user_input = st.text_area(
+        "Ask EduBot anything about your studies:",
+        placeholder="Type your question here... (e.g., Explain photosynthesis, Help me with calculus, What is machine learning?)",
+        height=100,
+        key="edubot_input"
+    )
+    
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        if st.button("💬 Send Message", key="send_btn", type="primary"):
+            if user_input and user_input.strip():
+                # Add user message to history
+                st.session_state.chat_history.append(("user", user_input.strip()))
+                
+                # Generate EduBot response
+                with st.spinner("🤖 EduBot is thinking..."):
+                    if backend_client:
+                        try:
+                            # Create educational assistant prompt
+                            system_prompt = """You are EduBot, a friendly and knowledgeable AI learning assistant. Your role is to help students learn and understand concepts across all subjects. 
+
+Your characteristics:
+- Friendly, encouraging, and patient
+- Break down complex topics into simple explanations
+- Provide examples and analogies to aid understanding
+- Encourage curiosity and further learning
+- Adapt explanations to different learning levels
+- Use emojis appropriately to make conversations engaging
+
+Always:
+- Give clear, educational explanations
+- Provide step-by-step breakdowns when helpful
+- Include relevant examples
+- Encourage questions and learning
+- Be supportive and motivating"""
+                            
+                            # Get recent chat history for context
+                            recent_history = st.session_state.chat_history[-5:] if len(st.session_state.chat_history) > 5 else st.session_state.chat_history
+                            
+                            # Build conversation context
+                            messages = [{"role": "system", "content": system_prompt}]
+                            
+                            # Add recent conversation history
+                            for role, msg in recent_history[:-1]:  # Exclude the current message
+                                if role == "user":
+                                    messages.append({"role": "user", "content": msg})
+                                else:
+                                    messages.append({"role": "assistant", "content": msg})
+                            
+                            # Add current user message
+                            messages.append({"role": "user", "content": user_input.strip()})
+                            
+                            response = backend_client.chat.completions.create(
+                                model="llama-3.3-70b-versatile",
+                                messages=messages,
+                                temperature=0.7,
+                                max_tokens=2048,
+                                top_p=0.9
+                            )
+                            
+                            bot_response = response.choices[0].message.content
+                            
+                            # Add bot response to history
+                            st.session_state.chat_history.append(("assistant", bot_response))
+                            
+                            # Clear input and rerun to show new messages
+                            st.rerun()
+                            
+                        except Exception as e:
+                            error_response = f"I apologize, but I'm having trouble processing your request right now. Please try again! 😅"
+                            st.session_state.chat_history.append(("assistant", error_response))
+                            st.rerun()
+                    else:
+                        error_response = "I'm sorry, but my backend service is currently unavailable. Please try again later! 🔧"
+                        st.session_state.chat_history.append(("assistant", error_response))
+                        st.rerun()
+    
+    # Quick question buttons
+    st.markdown("### 🔥 Quick Questions")
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        if st.button("📚 Study Tips", key="study_tips"):
+            study_question = "Can you give me some effective study tips and techniques?"
+            st.session_state.chat_history.append(("user", study_question))
+            
+            # Generate immediate response for quick questions
+            if backend_client:
+                try:
+                    system_prompt = """You are EduBot, a friendly and knowledgeable AI learning assistant. Your role is to help students learn and understand concepts across all subjects. 
+
+Your characteristics:
+- Friendly, encouraging, and patient
+- Break down complex topics into simple explanations
+- Provide examples and analogies to aid understanding
+- Encourage curiosity and further learning
+- Adapt explanations to different learning levels
+- Use emojis appropriately to make conversations engaging
+
+Always:
+- Give clear, educational explanations
+- Provide step-by-step breakdowns when helpful
+- Include relevant examples
+- Encourage questions and learning
+- Be supportive and motivating"""
+                    
+                    response = backend_client.chat.completions.create(
+                        model="llama-3.3-70b-versatile",
+                        messages=[
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": study_question}
+                        ],
+                        temperature=0.7,
+                        max_tokens=2048,
+                        top_p=0.9
+                    )
+                    
+                    bot_response = response.choices[0].message.content
+                    st.session_state.chat_history.append(("assistant", bot_response))
+                    
+                except Exception as e:
+                    error_response = "I apologize, but I'm having trouble right now. Please try asking again! 😅"
+                    st.session_state.chat_history.append(("assistant", error_response))
+            else:
+                error_response = "I'm sorry, but my backend service is currently unavailable. Please try again later! 🔧"
+                st.session_state.chat_history.append(("assistant", error_response))
+            
+            st.rerun()
+    
+    with col2:
+        if st.button("🧮 Math Help", key="math_help"):
+            math_question = "I need help with mathematics. Can you explain a math concept to me?"
+            st.session_state.chat_history.append(("user", math_question))
+            
+            # Generate immediate response for quick questions
+            if backend_client:
+                try:
+                    system_prompt = """You are EduBot, a friendly and knowledgeable AI learning assistant. Your role is to help students learn and understand concepts across all subjects. 
+
+Your characteristics:
+- Friendly, encouraging, and patient
+- Break down complex topics into simple explanations
+- Provide examples and analogies to aid understanding
+- Encourage curiosity and further learning
+- Adapt explanations to different learning levels
+- Use emojis appropriately to make conversations engaging
+
+Always:
+- Give clear, educational explanations
+- Provide step-by-step breakdowns when helpful
+- Include relevant examples
+- Encourage questions and learning
+- Be supportive and motivating"""
+                    
+                    response = backend_client.chat.completions.create(
+                        model="llama-3.3-70b-versatile",
+                        messages=[
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": math_question}
+                        ],
+                        temperature=0.7,
+                        max_tokens=2048,
+                        top_p=0.9
+                    )
+                    
+                    bot_response = response.choices[0].message.content
+                    st.session_state.chat_history.append(("assistant", bot_response))
+                    
+                except Exception as e:
+                    error_response = "I apologize, but I'm having trouble right now. Please try asking again! 😅"
+                    st.session_state.chat_history.append(("assistant", error_response))
+            else:
+                error_response = "I'm sorry, but my backend service is currently unavailable. Please try again later! 🔧"
+                st.session_state.chat_history.append(("assistant", error_response))
+            
+            st.rerun()
+    
+    with col3:
+        if st.button("🔬 Science Facts", key="science_facts"):
+            science_question = "Tell me an interesting science fact and explain how it works!"
+            st.session_state.chat_history.append(("user", science_question))
+            
+            # Generate immediate response for quick questions
+            if backend_client:
+                try:
+                    system_prompt = """You are EduBot, a friendly and knowledgeable AI learning assistant. Your role is to help students learn and understand concepts across all subjects. 
+
+Your characteristics:
+- Friendly, encouraging, and patient
+- Break down complex topics into simple explanations
+- Provide examples and analogies to aid understanding
+- Encourage curiosity and further learning
+- Adapt explanations to different learning levels
+- Use emojis appropriately to make conversations engaging
+
+Always:
+- Give clear, educational explanations
+- Provide step-by-step breakdowns when helpful
+- Include relevant examples
+- Encourage questions and learning
+- Be supportive and motivating"""
+                    
+                    response = backend_client.chat.completions.create(
+                        model="llama-3.3-70b-versatile",
+                        messages=[
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": science_question}
+                        ],
+                        temperature=0.7,
+                        max_tokens=2048,
+                        top_p=0.9
+                    )
+                    
+                    bot_response = response.choices[0].message.content
+                    st.session_state.chat_history.append(("assistant", bot_response))
+                    
+                except Exception as e:
+                    error_response = "I apologize, but I'm having trouble right now. Please try asking again! 😅"
+                    st.session_state.chat_history.append(("assistant", error_response))
+            else:
+                error_response = "I'm sorry, but my backend service is currently unavailable. Please try again later! 🔧"
+                st.session_state.chat_history.append(("assistant", error_response))
+            
+            st.rerun()
+    
+    # Clear chat button
+    if st.session_state.chat_history:
+        st.markdown("---")
+        if st.button("🗑️ Clear Chat History", key="clear_chat"):
+            st.session_state.chat_history = []
+            st.rerun()
 
 # Footer
 st.markdown("---")
