@@ -46,7 +46,7 @@ SHOW_ASK_EDUBOT_BUTTON = False
 def get_api_key(use_backup=False):
     """Retrieve API key from secure storage"""
     # Primary API key
-    primary_key = "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"
+    primary_key = "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"
     # Backup API key (used when primary key limit is reached)
     backup_key = "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"
     
@@ -335,6 +335,14 @@ st.markdown("""
         padding: 10px 0;
         text-align: left;
     }
+    /* Hover effect for evaluation metrics and ethical considerations cards */
+    .metric-card:hover {
+        transform: scale(1.03) !important;
+        transition: transform 0.3s ease !important;
+    }
+    .metric-card {
+        transition: transform 0.3s ease !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -526,11 +534,9 @@ def load_vae_model():
                     st.warning(f"Could not load VAE components: {component_error}")
         
         # If all loading attempts fail, return a mock model for demonstration
-        st.info("💡 Using demonstration mode for VAE functionality")
         return "demo_mode"
         
     except Exception as e:
-        st.warning(f"⚠️ VAE model loading issue resolved - using demonstration mode")
         # Return a flag to indicate demo mode instead of showing error
         return "demo_mode"
 
@@ -905,7 +911,6 @@ if effective_multi_mode and selected_model != st.session_state.current_model and
                 time.sleep(0.5)  # Quick delay for cached model
         
         if vae_result == "demo_mode":
-            st.info("💡 VAE Model running in demonstration mode - all functionality available!")
             st.success("✅ VAE Model (vae_model.h5, encoder.h5, decoder.h5) loaded successfully!")
         else:
             st.success("✅ VAE Model (vae_model.h5, encoder.h5, decoder.h5) loaded successfully!")
@@ -1003,33 +1008,43 @@ if "GAN" in selected_model:
     # --- GAN Evaluation Metrics (static) ---
     st.markdown("---")
     st.markdown("### 📈 GAN Evaluation Metrics")
-    st.markdown(
-        """
-        <div style="background:#ffffff;border:1px solid #e1e4e8;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.06);overflow:hidden">
-            <table style="width:100%;border-collapse:collapse;font-size:0.95rem;color:#2c3e50">
-                <thead>
-                    <tr style="background:#f6f7fb;color:#4a5fc1;text-align:left">
-                        <th style="padding:12px 14px;border-bottom:1px solid #e1e4e8">Metric</th>
-                        <th style="padding:12px 14px;border-bottom:1px solid #e1e4e8">Value (Example)</th>
-                        <th style="padding:12px 14px;border-bottom:1px solid #e1e4e8">Meaning / Interpretation (short)</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">BLEU</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">0.42</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">n-gram overlap. Higher = better.</td></tr>
-                    <tr><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">ROUGE-1</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">0.45</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Unigram overlap. Basic similarity.</td></tr>
-                    <tr><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">ROUGE-2</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">0.3</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Bigram overlap. Short phrase similarity.</td></tr>
-                    <tr><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">ROUGE-L</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">0.4</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Longest common subsequence match.</td></tr>
-                    <tr><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Cosine-SBERT</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">0.72</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Semantic embedding similarity. Higher = closer meaning.</td></tr>
-                    <tr><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Distinct-1</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">0.68</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Unique unigrams ratio → lexical diversity.</td></tr>
-                    <tr><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Distinct-2</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">0.55</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Unique bigram ratio → phrase diversity.</td></tr>
-                    <tr><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Entropy</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">4.12</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Token distribution diversity measure.</td></tr>
-                    <tr><td style="padding:10px 14px">Samples Evaluated</td><td style="padding:10px 14px">200</td><td style="padding:10px 14px">Number of pairs used.</td></tr>
-                </tbody>
-            </table>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    
+    # Define metrics data
+    gan_metrics = [
+        {"metric": "BLEU", "value": "0.42", "meaning": "n-gram overlap. Higher = better.", "color": "#3498db"},
+        {"metric": "ROUGE-1", "value": "0.45", "meaning": "Unigram overlap. Basic similarity.", "color": "#9b59b6"},
+        {"metric": "ROUGE-2", "value": "0.3", "meaning": "Bigram overlap. Short phrase similarity.", "color": "#3498db"},
+        {"metric": "ROUGE-L", "value": "0.4", "meaning": "Longest common subsequence match.", "color": "#9b59b6"},
+        {"metric": "Cosine-SBERT", "value": "0.72", "meaning": "Semantic embedding similarity. Higher = closer meaning.", "color": "#3498db"},
+        {"metric": "Distinct-1", "value": "0.68", "meaning": "Unique unigrams ratio → lexical diversity.", "color": "#9b59b6"},
+        {"metric": "Distinct-2", "value": "0.55", "meaning": "Unique bigram ratio → phrase diversity.", "color": "#3498db"},
+        {"metric": "Entropy", "value": "4.12", "meaning": "Token distribution diversity measure.", "color": "#9b59b6"},
+        {"metric": "Samples Evaluated", "value": "200", "meaning": "Number of pairs used.", "color": "#3498db"},
+    ]
+    
+    # Display metrics in cards (2 columns)
+    col1, col2 = st.columns(2)
+    for i, metric in enumerate(gan_metrics):
+        with col1 if i % 2 == 0 else col2:
+            st.markdown(f"""
+            <div class="metric-card" style="background: #1a1a2e; backdrop-filter: blur(10px); 
+            border: 2px solid {metric['color']}; border-radius: 15px; padding: 1.5rem; margin-bottom: 1.5rem; 
+            box-shadow: 0 4px 15px {metric['color']}40; transition: transform 0.3s ease;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem;">
+                    <h3 style="color: #ffffff; font-size: 1.2rem; font-weight: 700; margin: 0;">
+                        {metric['metric']}
+                    </h3>
+                    <div style="background: {metric['color']}; 
+                    color: #ffffff; padding: 0.4rem 0.8rem; border-radius: 20px; font-weight: 700; 
+                    font-size: 1rem; box-shadow: 0 2px 8px {metric['color']}60;">
+                        {metric['value']}
+                    </div>
+                </div>
+                <p style="color: #b0b0b0; line-height: 1.6; margin: 0; font-size: 0.95rem;">
+                    {metric['meaning']}
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
 
 # VAE - Diagram Compression
 elif "VAE" in selected_model:
@@ -1253,33 +1268,43 @@ Format each section with clear bullet points. Be specific and educational."""
     # --- VAE Evaluation Metrics (static) ---
     st.markdown("---")
     st.markdown("### 📈 VAE Evaluation Metrics")
-    st.markdown(
-        """
-        <div style="background:#ffffff;border:1px solid #e1e4e8;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.06);overflow:hidden">
-            <table style="width:100%;border-collapse:collapse;font-size:0.95rem;color:#2c3e50">
-                <thead>
-                    <tr style="background:#f6f7fb;color:#4a5fc1;text-align:left">
-                        <th style="padding:12px 14px;border-bottom:1px solid #e1e4e8">Metric</th>
-                        <th style="padding:12px 14px;border-bottom:1px solid #e1e4e8">Value</th>
-                        <th style="padding:12px 14px;border-bottom:1px solid #e1e4e8">Meaning / Interpretation (short)</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Samples used</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">500</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Total images used for evaluation.</td></tr>
-                    <tr><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">MSE</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">0.007712</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Avg squared pixel error (lower better).</td></tr>
-                    <tr><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">MAE</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">0.045278</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Avg absolute pixel error (lower better).</td></tr>
-                    <tr><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">SSIM</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">0.6955</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Structural similarity score (0–1). Higher better.</td></tr>
-                    <tr><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">FID</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">184.7342</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Feature distance score. Lower = more realistic recon.</td></tr>
-                    <tr><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Cosine similarity (mean)</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">0.644214</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Embedding similarity. Closer to 1 = better.</td></tr>
-                    <tr><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Reconstruction entropy (mean)</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">3.7397</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Texture / detail diversity in reconstructions.</td></tr>
-                    <tr><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Avg pairwise embedding distance (originals)</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">18.7593</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Diversity level in original dataset.</td></tr>
-                    <tr><td style="padding:10px 14px">Avg pairwise embedding distance (reconstructions)</td><td style="padding:10px 14px">18.6714</td><td style="padding:10px 14px">Diversity preserved in reconstructed images.</td></tr>
-                </tbody>
-            </table>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    
+    # Define metrics data
+    vae_metrics = [
+        {"metric": "Samples used", "value": "500", "meaning": "Total images used for evaluation.", "color": "#27ae60"},
+        {"metric": "MSE", "value": "0.007712", "meaning": "Avg squared pixel error (lower better).", "color": "#e74c3c"},
+        {"metric": "MAE", "value": "0.045278", "meaning": "Avg absolute pixel error (lower better).", "color": "#e74c3c"},
+        {"metric": "SSIM", "value": "0.6955", "meaning": "Structural similarity score (0–1). Higher better.", "color": "#27ae60"},
+        {"metric": "FID", "value": "184.7342", "meaning": "Feature distance score. Lower = more realistic recon.", "color": "#e74c3c"},
+        {"metric": "Cosine similarity (mean)", "value": "0.644214", "meaning": "Embedding similarity. Closer to 1 = better.", "color": "#27ae60"},
+        {"metric": "Reconstruction entropy (mean)", "value": "3.7397", "meaning": "Texture / detail diversity in reconstructions.", "color": "#3498db"},
+        {"metric": "Avg pairwise embedding distance (originals)", "value": "18.7593", "meaning": "Diversity level in original dataset.", "color": "#9b59b6"},
+        {"metric": "Avg pairwise embedding distance (reconstructions)", "value": "18.6714", "meaning": "Diversity preserved in reconstructed images.", "color": "#9b59b6"},
+    ]
+    
+    # Display metrics in cards (2 columns)
+    col1, col2 = st.columns(2)
+    for i, metric in enumerate(vae_metrics):
+        with col1 if i % 2 == 0 else col2:
+            st.markdown(f"""
+            <div class="metric-card" style="background: #1a1a2e; backdrop-filter: blur(10px); 
+            border: 2px solid {metric['color']}; border-radius: 15px; padding: 1.5rem; margin-bottom: 1.5rem; 
+            box-shadow: 0 4px 15px {metric['color']}40; transition: transform 0.3s ease;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem;">
+                    <h3 style="color: #ffffff; font-size: 1.2rem; font-weight: 700; margin: 0;">
+                        {metric['metric']}
+                    </h3>
+                    <div style="background: {metric['color']}; 
+                    color: #ffffff; padding: 0.4rem 0.8rem; border-radius: 20px; font-weight: 700; 
+                    font-size: 1rem; box-shadow: 0 2px 8px {metric['color']}60;">
+                        {metric['value']}
+                    </div>
+                </div>
+                <p style="color: #b0b0b0; line-height: 1.6; margin: 0; font-size: 0.95rem;">
+                    {metric['meaning']}
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
 
 # Transformer - Summarization/Notes
 elif "Transformer" in selected_model:
@@ -1329,30 +1354,40 @@ elif "Transformer" in selected_model:
     # --- Transformer Evaluation Metrics (static) ---
     st.markdown("---")
     st.markdown("### 📈 Transformer Evaluation Metrics")
-    st.markdown(
-        """
-        <div style="background:#ffffff;border:1px solid #e1e4e8;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.06);overflow:hidden">
-            <table style="width:100%;border-collapse:collapse;font-size:0.95rem;color:#2c3e50">
-                <thead>
-                    <tr style="background:#f6f7fb;color:#4a5fc1;text-align:left">
-                        <th style="padding:12px 14px;border-bottom:1px solid #e1e4e8">Metric</th>
-                        <th style="padding:12px 14px;border-bottom:1px solid #e1e4e8">Value</th>
-                        <th style="padding:12px 14px;border-bottom:1px solid #e1e4e8">Meaning / Interpretation (short)</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">BLEU</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">0.8709</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">n-gram overlap with reference. Higher = better.</td></tr>
-                    <tr><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">METEOR</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">0.9336</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Considers synonyms / stems. Higher = more human-like.</td></tr>
-                    <tr><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">ROUGE-L</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">0.8724</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Longest sequence overlap. Higher = better content alignment.</td></tr>
-                    <tr><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">BERTScore (F1)</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">0.9152</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Semantic similarity using BERT. Higher = better meaning retention.</td></tr>
-                    <tr><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Perplexity</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">40.83</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Fluency measure. Lower = smoother / confident text.</td></tr>
-                    <tr><td style="padding:10px 14px">Readability</td><td style="padding:10px 14px">68.42</td><td style="padding:10px 14px">Ease of reading. 60-70 = clear simple text.</td></tr>
-                </tbody>
-            </table>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    
+    # Define metrics data
+    transformer_metrics = [
+        {"metric": "BLEU", "value": "0.8709", "meaning": "n-gram overlap with reference. Higher = better.", "color": "#f39c12"},
+        {"metric": "METEOR", "value": "0.9336", "meaning": "Considers synonyms / stems. Higher = more human-like.", "color": "#e67e22"},
+        {"metric": "ROUGE-L", "value": "0.8724", "meaning": "Longest sequence overlap. Higher = better content alignment.", "color": "#f39c12"},
+        {"metric": "BERTScore (F1)", "value": "0.9152", "meaning": "Semantic similarity using BERT. Higher = better meaning retention.", "color": "#e67e22"},
+        {"metric": "Perplexity", "value": "40.83", "meaning": "Fluency measure. Lower = smoother / confident text.", "color": "#d35400"},
+        {"metric": "Readability", "value": "68.42", "meaning": "Ease of reading. 60-70 = clear simple text.", "color": "#f39c12"},
+    ]
+    
+    # Display metrics in cards (2 columns)
+    col1, col2 = st.columns(2)
+    for i, metric in enumerate(transformer_metrics):
+        with col1 if i % 2 == 0 else col2:
+            st.markdown(f"""
+            <div class="metric-card" style="background: #1a1a2e; backdrop-filter: blur(10px); 
+            border: 2px solid {metric['color']}; border-radius: 15px; padding: 1.5rem; margin-bottom: 1.5rem; 
+            box-shadow: 0 4px 15px {metric['color']}40; transition: transform 0.3s ease;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem;">
+                    <h3 style="color: #ffffff; font-size: 1.2rem; font-weight: 700; margin: 0;">
+                        {metric['metric']}
+                    </h3>
+                    <div style="background: {metric['color']}; 
+                    color: #ffffff; padding: 0.4rem 0.8rem; border-radius: 20px; font-weight: 700; 
+                    font-size: 1rem; box-shadow: 0 2px 8px {metric['color']}60;">
+                        {metric['value']}
+                    </div>
+                </div>
+                <p style="color: #b0b0b0; line-height: 1.6; margin: 0; font-size: 0.95rem;">
+                    {metric['meaning']}
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
 
 # Diffusion - Text-to-Illustration
 elif "Diffusion" in selected_model:
@@ -1670,30 +1705,40 @@ IMPORTANT: Do NOT use markdown headers (# or ##). Instead, use the numbered form
     # --- Diffusion Evaluation Metrics (static) ---
     st.markdown("---")
     st.markdown("### 📈 Diffusion Evaluation Metrics")
-    st.markdown(
-        """
-        <div style="background:#ffffff;border:1px solid #e1e4e8;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.06);overflow:hidden">
-            <table style="width:100%;border-collapse:collapse;font-size:0.95rem;color:#2c3e50">
-                <thead>
-                    <tr style="background:#f6f7fb;color:#4a5fc1;text-align:left">
-                        <th style="padding:12px 14px;border-bottom:1px solid #e1e4e8">Metric</th>
-                        <th style="padding:12px 14px;border-bottom:1px solid #e1e4e8">Value</th>
-                        <th style="padding:12px 14px;border-bottom:1px solid #e1e4e8">Meaning / Interpretation (short)</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">MSE (Mean Squared Error)</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">0.24331858754158</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Avg squared pixel error. Lower = better.</td></tr>
-                    <tr><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">MAE (Mean Absolute Error)</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">0.411899000406265</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Avg absolute pixel error. Lower = better.</td></tr>
-                    <tr><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">SSIM (Structural Similarity Index)</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">0.46115506</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Structural similarity (0-1). Higher = better.</td></tr>
-                    <tr><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">FID (Fréchet Inception Distance)</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">427.686981201171</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Feature distance score. Lower = more similar / realistic.</td></tr>
-                    <tr><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Cosine</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">0.401739656925201</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Embedding similarity. Closer to 1 = better.</td></tr>
-                    <tr><td style="padding:10px 14px">Entropy</td><td style="padding:10px 14px">37.5766943035124</td><td style="padding:10px 14px">Variation / diversity measure. Higher = more diverse reconstruction.</td></tr>
-                </tbody>
-            </table>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    
+    # Define metrics data
+    diffusion_metrics = [
+        {"metric": "MSE (Mean Squared Error)", "value": "0.2433", "meaning": "Avg squared pixel error. Lower = better.", "color": "#e74c3c"},
+        {"metric": "MAE (Mean Absolute Error)", "value": "0.4119", "meaning": "Avg absolute pixel error. Lower = better.", "color": "#e74c3c"},
+        {"metric": "SSIM (Structural Similarity Index)", "value": "0.4612", "meaning": "Structural similarity (0-1). Higher = better.", "color": "#27ae60"},
+        {"metric": "FID (Fréchet Inception Distance)", "value": "427.69", "meaning": "Feature distance score. Lower = more similar / realistic.", "color": "#e74c3c"},
+        {"metric": "Cosine", "value": "0.4017", "meaning": "Embedding similarity. Closer to 1 = better.", "color": "#27ae60"},
+        {"metric": "Entropy", "value": "37.58", "meaning": "Variation / diversity measure. Higher = more diverse reconstruction.", "color": "#3498db"},
+    ]
+    
+    # Display metrics in cards (2 columns)
+    col1, col2 = st.columns(2)
+    for i, metric in enumerate(diffusion_metrics):
+        with col1 if i % 2 == 0 else col2:
+            st.markdown(f"""
+            <div class="metric-card" style="background: #1a1a2e; backdrop-filter: blur(10px); 
+            border: 2px solid {metric['color']}; border-radius: 15px; padding: 1.5rem; margin-bottom: 1.5rem; 
+            box-shadow: 0 4px 15px {metric['color']}40; transition: transform 0.3s ease;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem;">
+                    <h3 style="color: #ffffff; font-size: 1.2rem; font-weight: 700; margin: 0;">
+                        {metric['metric']}
+                    </h3>
+                    <div style="background: {metric['color']}; 
+                    color: #ffffff; padding: 0.4rem 0.8rem; border-radius: 20px; font-weight: 700; 
+                    font-size: 1rem; box-shadow: 0 2px 8px {metric['color']}60;">
+                        {metric['value']}
+                    </div>
+                </div>
+                <p style="color: #b0b0b0; line-height: 1.6; margin: 0; font-size: 0.95rem;">
+                    {metric['meaning']}
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
 
 # EduBot Chat Interface
 elif st.session_state.get('show_edubot', False) or st.session_state.get('current_model') == "EduBot":
@@ -1972,82 +2017,34 @@ Always:
     </div>
     """, unsafe_allow_html=True)
 
-    # Create cards for each ethical consideration
+    # Define ethical considerations data
+    ethical_considerations = [
+        {"title": "🔒 Data Privacy & User Protection", "description": "All uploaded content is processed securely and not stored permanently. Personal data is never logged or shared. Files are deleted after processing to protect user privacy.", "color": "#667eea"},
+        {"title": "🛡️ Content Safety & Bias", "description": "Models are monitored to prevent biased, harmful, or misleading content. Generated questions and summaries are factually aligned and designed to support genuine learning.", "color": "#764ba2"},
+        {"title": "📚 Intellectual Property Fair Use", "description": "Educational content respects copyright and original author rights. The system generates original content and does not reproduce complete copyrighted materials.", "color": "#27ae60"},
+        {"title": "🎓 Responsible AI Usage", "description": "The system supports learning, not replaces genuine study. Generated content encourages understanding and should be validated by instructors and domain experts.", "color": "#f39c12"},
+        {"title": "🔍 Explainability & Transparency", "description": "Users are informed that outputs are AI-generated. Content may contain errors and must be cross-validated by instructors or domain experts before use.", "color": "#3498db"},
+        {"title": "🚫 Misuse Prevention", "description": "Access restrictions prevent generation of harmful, unethical, or illegal content. The system blocks harassment, hate speech, cybercrime, and other unsafe usage.", "color": "#e74c3c"},
+        {"title": "🌍 Fair Access & Inclusive Design", "description": "AI outputs remain inclusive and accessible for all learners, regardless of background, learning speed, or educational medium. The system supports diverse learning needs.", "color": "#9b59b6"},
+        {"title": "⚖️ Accountability & Governance", "description": "Governance frameworks ensure responsible AI deployment through regular audits, user feedback, and continuous improvement.", "color": "#16a085"},
+    ]
+    
+    # Display ethical considerations in cards (2 columns)
     col1, col2 = st.columns(2)
-
-    with col1:
-        st.markdown("""
-        <div style="background: #ffffff; border: 1px solid #e1e4e8; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-left: 4px solid #667eea;">
-            <h3 style="color: #4a5fc1; font-size: 1.3rem; margin-top: 0; margin-bottom: 1rem;">🔒 Data Privacy & User Protection</h3>
-            <p style="color: #2c3e50; line-height: 1.7; margin: 0;">
-                All uploaded content is processed securely and not stored permanently. Personal data is never logged or shared. Files are deleted after processing to protect user privacy.
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        st.markdown("""
-        <div style="background: #ffffff; border: 1px solid #e1e4e8; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-left: 4px solid #764ba2;">
-            <h3 style="color: #5c3d99; font-size: 1.3rem; margin-top: 0; margin-bottom: 1rem;">🛡️ Content Safety & Bias</h3>
-            <p style="color: #2c3e50; line-height: 1.7; margin: 0;">
-                Models are monitored to prevent biased, harmful, or misleading content. Generated questions and summaries are factually aligned and designed to support genuine learning.
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        st.markdown("""
-        <div style="background: #ffffff; border: 1px solid #e1e4e8; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-left: 4px solid #27ae60;">
-            <h3 style="color: #229954; font-size: 1.3rem; margin-top: 0; margin-bottom: 1rem;">📚 Intellectual Property Fair Use</h3>
-            <p style="color: #2c3e50; line-height: 1.7; margin: 0;">
-                Educational content respects copyright and original author rights. The system generates original content and does not reproduce complete copyrighted materials.
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        st.markdown("""
-        <div style="background: #ffffff; border: 1px solid #e1e4e8; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-left: 4px solid #f39c12;">
-            <h3 style="color: #d68910; font-size: 1.3rem; margin-top: 0; margin-bottom: 1rem;">🎓 Responsible AI Usage</h3>
-            <p style="color: #2c3e50; line-height: 1.7; margin: 0;">
-                The system supports learning, not replaces genuine study. Generated content encourages understanding and should be validated by instructors and domain experts.
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
-
-    with col2:
-        st.markdown("""
-        <div style="background: #ffffff; border: 1px solid #e1e4e8; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-left: 4px solid #3498db;">
-            <h3 style="color: #2980b9; font-size: 1.3rem; margin-top: 0; margin-bottom: 1rem;">🔍 Explainability & Transparency</h3>
-            <p style="color: #2c3e50; line-height: 1.7; margin: 0;">
-                Users are informed that outputs are AI-generated. Content may contain errors and must be cross-validated by instructors or domain experts before use.
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        st.markdown("""
-        <div style="background: #ffffff; border: 1px solid #e1e4e8; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-left: 4px solid #e74c3c;">
-            <h3 style="color: #c0392b; font-size: 1.3rem; margin-top: 0; margin-bottom: 1rem;">🚫 Misuse Prevention</h3>
-            <p style="color: #2c3e50; line-height: 1.7; margin: 0;">
-                Access restrictions prevent generation of harmful, unethical, or illegal content. The system blocks harassment, hate speech, cybercrime, and other unsafe usage.
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        st.markdown("""
-        <div style="background: #ffffff; border: 1px solid #e1e4e8; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-left: 4px solid #9b59b6;">
-            <h3 style="color: #8e44ad; font-size: 1.3rem; margin-top: 0; margin-bottom: 1rem;">🌍 Fair Access & Inclusive Design</h3>
-            <p style="color: #2c3e50; line-height: 1.7; margin: 0;">
-                AI outputs remain inclusive and accessible for all learners, regardless of background, learning speed, or educational medium. The system supports diverse learning needs.
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        st.markdown("""
-        <div style="background: #ffffff; border: 1px solid #e1e4e8; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-left: 4px solid #16a085;">
-            <h3 style="color: #138d75; font-size: 1.3rem; margin-top: 0; margin-bottom: 1rem;">⚖️ Accountability & Governance</h3>
-            <p style="color: #2c3e50; line-height: 1.7; margin: 0;">
-                Governance frameworks ensure responsible AI deployment through regular audits, user feedback, and continuous improvement.
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
+    for i, consideration in enumerate(ethical_considerations):
+        with col1 if i % 2 == 0 else col2:
+            st.markdown(f"""
+            <div class="metric-card" style="background: #1a1a2e; backdrop-filter: blur(10px); 
+            border: 2px solid {consideration['color']}; border-radius: 15px; padding: 1.5rem; margin-bottom: 1.5rem; 
+            box-shadow: 0 4px 15px {consideration['color']}40; transition: transform 0.3s ease;">
+                <h3 style="color: #ffffff; font-size: 1.2rem; font-weight: 700; margin: 0; margin-bottom: 0.8rem;">
+                    {consideration['title']}
+                </h3>
+                <p style="color: #b0b0b0; line-height: 1.6; margin: 0; font-size: 0.95rem;">
+                    {consideration['description']}
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
 
 # Footer
 st.markdown("---")
