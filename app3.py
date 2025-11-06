@@ -43,10 +43,20 @@ except ImportError:
 CHATBOT_ONLY = True
 # Controls whether the sidebar shows the "Ask to EduBot" shortcut button
 SHOW_ASK_EDUBOT_BUTTON = False
-def get_api_key():
+def get_api_key(use_backup=False):
     """Retrieve API key from secure storage"""
-    key_parts = ["gsk_qL4IGkk2cELrJVsvotHZWGdyb3FY", "vAalqq1BtCYZXFuyPAm6uERh"]
-    return "".join(key_parts)
+    # Primary API key
+    primary_key = "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"
+    # Backup API key (used when primary key limit is reached)
+    backup_key = "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"
+    
+    if use_backup:
+        return backup_key
+    return primary_key
+
+def get_backup_api_key():
+    """Get backup API key"""
+    return "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"
 
 # Model paths
 TRAINED_MODEL_DIR = "D:/BTech/GAA LAB/Project/trained_model"
@@ -75,24 +85,36 @@ if 'force_models' not in st.session_state:
 # Custom CSS
 st.markdown("""
 <style>
-    .main-header {
-        font-size: 3.2rem;
-        font-weight: 800;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        text-align: center;
-        margin-bottom: 0.3rem;
-        padding: 1rem 0;
-        letter-spacing: -1px;
+    p.main-header, .main-header {
+        font-size: 3.2rem !important;
+        font-weight: 800 !important;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+        -webkit-background-clip: text !important;
+        -webkit-text-fill-color: transparent !important;
+        text-align: center !important;
+        margin-bottom: 0.3rem !important;
+        padding: 1rem 0 !important;
+        letter-spacing: -1px !important;
+        line-height: 1.2 !important;
+        display: block !important;
+        min-height: 3.5rem !important;
     }
-    .sub-header {
-        font-size: 1.3rem;
-        color: #555;
-        text-align: center;
-        margin-bottom: 2rem;
-        font-weight: 500;
-        font-style: italic;
+    p.sub-header, .sub-header {
+        font-size: 1.3rem !important;
+        color: #555 !important;
+        text-align: center !important;
+        margin-bottom: 2rem !important;
+        font-weight: 500 !important;
+        font-style: italic !important;
+        display: block !important;
+    }
+    @media (max-width: 768px) {
+        p.main-header, .main-header {
+            font-size: 2.5rem !important;
+        }
+        p.sub-header, .sub-header {
+            font-size: 1.1rem !important;
+        }
     }
     .model-card {
         background: linear-gradient(135deg, #e8ecfd 0%, #f3e7fd 100%);
@@ -109,12 +131,19 @@ st.markdown("""
         box-shadow: 0 12px 30px rgba(102, 126, 234, 0.4);
         border-color: #5b6fd8;
     }
-    .model-title {
-        font-size: 1.8rem;
-        font-weight: 700;
-        margin-bottom: 0.5rem;
-        color: #4a5fc1;
-        text-shadow: none;
+    .model-title, div.model-title {
+        font-size: 1.8rem !important;
+        font-weight: 700 !important;
+        margin-bottom: 0.5rem !important;
+        color: #4a5fc1 !important;
+        text-shadow: none !important;
+        display: block !important;
+        line-height: 1.3 !important;
+    }
+    @media (max-width: 768px) {
+        .model-title, div.model-title {
+            font-size: 1.5rem !important;
+        }
     }
     .model-desc {
         font-size: 1rem;
@@ -159,6 +188,9 @@ st.markdown("""
     .stButton>button:hover {
         transform: translateY(-3px);
         box-shadow: 0 8px 25px rgba(102, 126, 234, 0.5);
+        color: #000000 !important;
+        background: linear-gradient(135deg, #ffffff 0%, #f0f0f0 100%) !important;
+        border: 2px solid #667eea !important;
     }
     .info-badge {
         display: inline-block;
@@ -527,19 +559,33 @@ def load_diffusion_model():
         return None
 
 # ==================== API BACKEND FUNCTIONS ====================
-def init_backend_client():
-    """Initialize backend client"""
+def init_backend_client(use_backup=False):
+    """Initialize backend client with primary or backup API key"""
     if api_available:
         try:
-            key = get_api_key()
+            key = get_api_key(use_backup=use_backup)
             client = Groq(api_key=key)
             return client
         except:
             return None
     return None
 
-def process_with_backend(client, text, task_type, num_questions=5):
-    """Process text using backend"""
+def get_client_with_fallback():
+    """Get API client, trying primary key first, then backup if needed"""
+    # Try primary key first
+    client = init_backend_client(use_backup=False)
+    if client:
+        return client, False  # Return client and False (not using backup)
+    
+    # If primary fails, try backup
+    client = init_backend_client(use_backup=True)
+    if client:
+        return client, True  # Return client and True (using backup)
+    
+    return None, False
+
+def process_with_backend(client, text, task_type, num_questions=5, use_backup=False):
+    """Process text using backend with automatic fallback to backup API key"""
     try:
         if task_type == "questions":
             system_msg = "You are an expert educational question generator. Generate thoughtful, diverse questions that test understanding at different levels."
@@ -571,10 +617,20 @@ def process_with_backend(client, text, task_type, num_questions=5):
         return response.choices[0].message.content
     
     except Exception as e:
+        error_str = str(e).lower()
+        # Check if it's a rate limit error and we haven't tried backup yet
+        if ("rate limit" in error_str or "429" in error_str or "quota" in error_str) and not use_backup:
+            # Try with backup API key
+            try:
+                backup_client = init_backend_client(use_backup=True)
+                if backup_client:
+                    return process_with_backend(backup_client, text, task_type, num_questions, use_backup=True)
+            except:
+                pass
         return f"Processing error: {str(e)}"
 
-def generate_svg_illustration(client, prompt, style, quality):
-    """Generate SVG illustration using Groq API (enhanced realism)"""
+def generate_svg_illustration(client, prompt, style, quality, use_backup=False):
+    """Generate SVG illustration using Groq API (enhanced realism) with automatic fallback to backup API key"""
     try:
         enhanced_prompt = f"""Create a COMPLETE, HIGH-FIDELITY SVG for: "{prompt}"
 
@@ -719,6 +775,16 @@ Generate ONLY the complete SVG code (starting with <svg> and ending with </svg>)
         return response.choices[0].message.content
     
     except Exception as e:
+        error_str = str(e).lower()
+        # Check if it's a rate limit error and we haven't tried backup yet
+        if ("rate limit" in error_str or "429" in error_str or "quota" in error_str) and not use_backup:
+            # Try with backup API key
+            try:
+                backup_client = init_backend_client(use_backup=True)
+                if backup_client:
+                    return generate_svg_illustration(backup_client, prompt, style, quality, use_backup=True)
+            except:
+                pass
         return f"Error generating illustration: {str(e)}"
 
 # ==================== MAIN APP ====================
@@ -736,7 +802,7 @@ if not effective_multi_mode:
     st.session_state.show_edubot = True
     st.session_state.current_model = "EduBot"
     # Provide a way to access models temporarily
-    st.sidebar.markdown("## 🤖 EduBot Mode")
+    st.sidebar.markdown("## ⚙️ EduBot Mode")
     st.sidebar.info("Chatbot-only mode is active.")
     if st.sidebar.button("🔧 Open Model Suite", use_container_width=True):
         st.session_state.force_models = True
@@ -758,7 +824,7 @@ else:
     # Optional EduBot shortcut (disabled by default)
     st.sidebar.markdown("---")
     if SHOW_ASK_EDUBOT_BUTTON:
-        if st.sidebar.button("🤖 Ask to EduBot", key="edubot_btn", use_container_width=True):
+        if st.sidebar.button("⚙️ Ask to EduBot", key="edubot_btn", use_container_width=True):
             st.session_state.show_edubot = True
             st.session_state.current_model = "EduBot"
             st.rerun()
@@ -888,6 +954,37 @@ if "GAN" in selected_model:
                         st.error("❌ Backend service unavailable")
             else:
                 st.warning("Please enter at least 20 characters of content")
+
+    # --- GAN Evaluation Metrics (static) ---
+    st.markdown("---")
+    st.markdown("### 📈 GAN Evaluation Metrics")
+    st.markdown(
+        """
+        <div style="background:#ffffff;border:1px solid #e1e4e8;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.06);overflow:hidden">
+            <table style="width:100%;border-collapse:collapse;font-size:0.95rem;color:#2c3e50">
+                <thead>
+                    <tr style="background:#f6f7fb;color:#4a5fc1;text-align:left">
+                        <th style="padding:12px 14px;border-bottom:1px solid #e1e4e8">Metric</th>
+                        <th style="padding:12px 14px;border-bottom:1px solid #e1e4e8">Value (Example)</th>
+                        <th style="padding:12px 14px;border-bottom:1px solid #e1e4e8">Meaning / Interpretation (short)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">BLEU</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">0.42</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">n-gram overlap. Higher = better.</td></tr>
+                    <tr><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">ROUGE-1</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">0.45</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Unigram overlap. Basic similarity.</td></tr>
+                    <tr><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">ROUGE-2</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">0.3</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Bigram overlap. Short phrase similarity.</td></tr>
+                    <tr><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">ROUGE-L</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">0.4</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Longest common subsequence match.</td></tr>
+                    <tr><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Cosine-SBERT</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">0.72</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Semantic embedding similarity. Higher = closer meaning.</td></tr>
+                    <tr><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Distinct-1</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">0.68</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Unique unigrams ratio → lexical diversity.</td></tr>
+                    <tr><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Distinct-2</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">0.55</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Unique bigram ratio → phrase diversity.</td></tr>
+                    <tr><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Entropy</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">4.12</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Token distribution diversity measure.</td></tr>
+                    <tr><td style="padding:10px 14px">Samples Evaluated</td><td style="padding:10px 14px">200</td><td style="padding:10px 14px">Number of pairs used.</td></tr>
+                </tbody>
+            </table>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 # VAE - Diagram Compression
 elif "VAE" in selected_model:
@@ -1108,6 +1205,37 @@ Format each section with clear bullet points. Be specific and educational."""
                         st.error(f"❌ Processing error: {e}")
                         st.info("💡 Try uploading a different image format (PNG or JPG recommended)")
 
+    # --- VAE Evaluation Metrics (static) ---
+    st.markdown("---")
+    st.markdown("### 📈 VAE Evaluation Metrics")
+    st.markdown(
+        """
+        <div style="background:#ffffff;border:1px solid #e1e4e8;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.06);overflow:hidden">
+            <table style="width:100%;border-collapse:collapse;font-size:0.95rem;color:#2c3e50">
+                <thead>
+                    <tr style="background:#f6f7fb;color:#4a5fc1;text-align:left">
+                        <th style="padding:12px 14px;border-bottom:1px solid #e1e4e8">Metric</th>
+                        <th style="padding:12px 14px;border-bottom:1px solid #e1e4e8">Value</th>
+                        <th style="padding:12px 14px;border-bottom:1px solid #e1e4e8">Meaning / Interpretation (short)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Samples used</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">500</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Total images used for evaluation.</td></tr>
+                    <tr><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">MSE</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">0.007712</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Avg squared pixel error (lower better).</td></tr>
+                    <tr><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">MAE</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">0.045278</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Avg absolute pixel error (lower better).</td></tr>
+                    <tr><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">SSIM</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">0.6955</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Structural similarity score (0–1). Higher better.</td></tr>
+                    <tr><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">FID</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">184.7342</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Feature distance score. Lower = more realistic recon.</td></tr>
+                    <tr><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Cosine similarity (mean)</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">0.644214</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Embedding similarity. Closer to 1 = better.</td></tr>
+                    <tr><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Reconstruction entropy (mean)</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">3.7397</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Texture / detail diversity in reconstructions.</td></tr>
+                    <tr><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Avg pairwise embedding distance (originals)</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">18.7593</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Diversity level in original dataset.</td></tr>
+                    <tr><td style="padding:10px 14px">Avg pairwise embedding distance (reconstructions)</td><td style="padding:10px 14px">18.6714</td><td style="padding:10px 14px">Diversity preserved in reconstructed images.</td></tr>
+                </tbody>
+            </table>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
 # Transformer - Summarization/Notes
 elif "Transformer" in selected_model:
     st.markdown('<div class="model-card"><div class="model-title">📝 Transformer - Summarization & Notes</div><div class="model-desc">Generate comprehensive summaries and detailed study notes using state-of-the-art Transformer architecture.</div></div>', unsafe_allow_html=True)
@@ -1152,6 +1280,34 @@ elif "Transformer" in selected_model:
                         st.error("❌ Backend service unavailable")
             else:
                 st.warning("Please enter at least 20 characters of content")
+
+    # --- Transformer Evaluation Metrics (static) ---
+    st.markdown("---")
+    st.markdown("### 📈 Transformer Evaluation Metrics")
+    st.markdown(
+        """
+        <div style="background:#ffffff;border:1px solid #e1e4e8;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.06);overflow:hidden">
+            <table style="width:100%;border-collapse:collapse;font-size:0.95rem;color:#2c3e50">
+                <thead>
+                    <tr style="background:#f6f7fb;color:#4a5fc1;text-align:left">
+                        <th style="padding:12px 14px;border-bottom:1px solid #e1e4e8">Metric</th>
+                        <th style="padding:12px 14px;border-bottom:1px solid #e1e4e8">Value</th>
+                        <th style="padding:12px 14px;border-bottom:1px solid #e1e4e8">Meaning / Interpretation (short)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">BLEU</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">0.8709</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">n-gram overlap with reference. Higher = better.</td></tr>
+                    <tr><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">METEOR</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">0.9336</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Considers synonyms / stems. Higher = more human-like.</td></tr>
+                    <tr><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">ROUGE-L</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">0.8724</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Longest sequence overlap. Higher = better content alignment.</td></tr>
+                    <tr><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">BERTScore (F1)</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">0.9152</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Semantic similarity using BERT. Higher = better meaning retention.</td></tr>
+                    <tr><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Perplexity</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">40.83</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Fluency measure. Lower = smoother / confident text.</td></tr>
+                    <tr><td style="padding:10px 14px">Readability</td><td style="padding:10px 14px">68.42</td><td style="padding:10px 14px">Ease of reading. 60-70 = clear simple text.</td></tr>
+                </tbody>
+            </table>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 # Diffusion - Text-to-Illustration
 elif "Diffusion" in selected_model:
@@ -1466,9 +1622,37 @@ IMPORTANT: Do NOT use markdown headers (# or ##). Instead, use the numbered form
         - "Pythagorean theorem illustrated with right triangle and squares"
         """)
 
+    # --- Diffusion Evaluation Metrics (static) ---
+    st.markdown("---")
+    st.markdown("### 📈 Diffusion Evaluation Metrics")
+    st.markdown(
+        """
+        <div style="background:#ffffff;border:1px solid #e1e4e8;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.06);overflow:hidden">
+            <table style="width:100%;border-collapse:collapse;font-size:0.95rem;color:#2c3e50">
+                <thead>
+                    <tr style="background:#f6f7fb;color:#4a5fc1;text-align:left">
+                        <th style="padding:12px 14px;border-bottom:1px solid #e1e4e8">Metric</th>
+                        <th style="padding:12px 14px;border-bottom:1px solid #e1e4e8">Value</th>
+                        <th style="padding:12px 14px;border-bottom:1px solid #e1e4e8">Meaning / Interpretation (short)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">MSE (Mean Squared Error)</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">0.24331858754158</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Avg squared pixel error. Lower = better.</td></tr>
+                    <tr><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">MAE (Mean Absolute Error)</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">0.411899000406265</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Avg absolute pixel error. Lower = better.</td></tr>
+                    <tr><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">SSIM (Structural Similarity Index)</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">0.46115506</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Structural similarity (0-1). Higher = better.</td></tr>
+                    <tr><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">FID (Fréchet Inception Distance)</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">427.686981201171</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Feature distance score. Lower = more similar / realistic.</td></tr>
+                    <tr><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Cosine</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">0.401739656925201</td><td style="padding:10px 14px;border-bottom:1px solid #f0f2f5">Embedding similarity. Closer to 1 = better.</td></tr>
+                    <tr><td style="padding:10px 14px">Entropy</td><td style="padding:10px 14px">37.5766943035124</td><td style="padding:10px 14px">Variation / diversity measure. Higher = more diverse reconstruction.</td></tr>
+                </tbody>
+            </table>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
 # EduBot Chat Interface
 elif st.session_state.get('show_edubot', False) or st.session_state.get('current_model') == "EduBot":
-    st.markdown('<div class="model-card"><div class="model-title">🤖 EduBot - Your AI Learning Assistant</div><div class="model-desc">Ask questions, get explanations, and receive personalized learning support from your intelligent educational companion.</div></div>', unsafe_allow_html=True)
+    st.markdown('<div class="model-card"><div class="model-title">⚙️ EduBot - Your AI Learning Assistant</div><div class="model-desc">Ask questions, get explanations, and receive personalized learning support from your intelligent educational companion.</div></div>', unsafe_allow_html=True)
     
     # Add back button only when multi-model UI is enabled
     if effective_multi_mode:
@@ -1495,7 +1679,7 @@ elif st.session_state.get('show_edubot', False) or st.session_state.get('current
                 <div style="background: #f8f9fa; color: #2c3e50; padding: 15px; 
                 border-radius: 15px; margin: 10px 0; max-width: 80%; 
                 border-left: 4px solid #667eea;">
-                    <strong>🤖 EduBot:</strong> {message}
+                    <strong>⚙️ EduBot:</strong> {message}
                 </div>
                 """, unsafe_allow_html=True)
     
@@ -1515,7 +1699,7 @@ elif st.session_state.get('show_edubot', False) or st.session_state.get('current
                 st.session_state.chat_history.append(("user", user_input.strip()))
                 
                 # Generate EduBot response
-                with st.spinner("🤖 EduBot is thinking..."):
+                with st.spinner("⚙️ EduBot is thinking..."):
                     if backend_client:
                         try:
                             # Create educational assistant prompt
@@ -1731,6 +1915,94 @@ Always:
         if st.button("🗑️ Clear Chat History", key="clear_chat"):
             st.session_state.chat_history = []
             st.rerun()
+
+    # Ethical Considerations Section
+    st.markdown("---")
+    st.markdown("### ⚖️ Ethical Considerations")
+    st.markdown("""
+    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 2.5rem; border-radius: 15px; margin: 2rem 0; box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3); border: 2px solid #667eea;">
+        <p style="color: #ffffff; font-size: 1.25rem; font-weight: 700; line-height: 1.8; margin: 0; text-align: center; text-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+            <strong>EduGen is committed to responsible AI usage in education.</strong> We adhere to ethical principles to ensure safe, fair, and transparent learning experiences.
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Create cards for each ethical consideration
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.markdown("""
+        <div style="background: #ffffff; border: 1px solid #e1e4e8; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-left: 4px solid #667eea;">
+            <h3 style="color: #4a5fc1; font-size: 1.3rem; margin-top: 0; margin-bottom: 1rem;">🔒 Data Privacy & User Protection</h3>
+            <p style="color: #2c3e50; line-height: 1.7; margin: 0;">
+                All uploaded content is processed securely and not stored permanently. Personal data is never logged or shared. Files are deleted after processing to protect user privacy.
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("""
+        <div style="background: #ffffff; border: 1px solid #e1e4e8; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-left: 4px solid #764ba2;">
+            <h3 style="color: #5c3d99; font-size: 1.3rem; margin-top: 0; margin-bottom: 1rem;">🛡️ Content Safety & Bias</h3>
+            <p style="color: #2c3e50; line-height: 1.7; margin: 0;">
+                Models are monitored to prevent biased, harmful, or misleading content. Generated questions and summaries are factually aligned and designed to support genuine learning.
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("""
+        <div style="background: #ffffff; border: 1px solid #e1e4e8; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-left: 4px solid #27ae60;">
+            <h3 style="color: #229954; font-size: 1.3rem; margin-top: 0; margin-bottom: 1rem;">📚 Intellectual Property Fair Use</h3>
+            <p style="color: #2c3e50; line-height: 1.7; margin: 0;">
+                Educational content respects copyright and original author rights. The system generates original content and does not reproduce complete copyrighted materials.
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("""
+        <div style="background: #ffffff; border: 1px solid #e1e4e8; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-left: 4px solid #f39c12;">
+            <h3 style="color: #d68910; font-size: 1.3rem; margin-top: 0; margin-bottom: 1rem;">🎓 Responsible AI Usage</h3>
+            <p style="color: #2c3e50; line-height: 1.7; margin: 0;">
+                The system supports learning, not replaces genuine study. Generated content encourages understanding and should be validated by instructors and domain experts.
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+
+    with col2:
+        st.markdown("""
+        <div style="background: #ffffff; border: 1px solid #e1e4e8; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-left: 4px solid #3498db;">
+            <h3 style="color: #2980b9; font-size: 1.3rem; margin-top: 0; margin-bottom: 1rem;">🔍 Explainability & Transparency</h3>
+            <p style="color: #2c3e50; line-height: 1.7; margin: 0;">
+                Users are informed that outputs are AI-generated. Content may contain errors and must be cross-validated by instructors or domain experts before use.
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("""
+        <div style="background: #ffffff; border: 1px solid #e1e4e8; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-left: 4px solid #e74c3c;">
+            <h3 style="color: #c0392b; font-size: 1.3rem; margin-top: 0; margin-bottom: 1rem;">🚫 Misuse Prevention</h3>
+            <p style="color: #2c3e50; line-height: 1.7; margin: 0;">
+                Access restrictions prevent generation of harmful, unethical, or illegal content. The system blocks harassment, hate speech, cybercrime, and other unsafe usage.
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("""
+        <div style="background: #ffffff; border: 1px solid #e1e4e8; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-left: 4px solid #9b59b6;">
+            <h3 style="color: #8e44ad; font-size: 1.3rem; margin-top: 0; margin-bottom: 1rem;">🌍 Fair Access & Inclusive Design</h3>
+            <p style="color: #2c3e50; line-height: 1.7; margin: 0;">
+                AI outputs remain inclusive and accessible for all learners, regardless of background, learning speed, or educational medium. The system supports diverse learning needs.
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("""
+        <div style="background: #ffffff; border: 1px solid #e1e4e8; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-left: 4px solid #16a085;">
+            <h3 style="color: #138d75; font-size: 1.3rem; margin-top: 0; margin-bottom: 1rem;">⚖️ Accountability & Governance</h3>
+            <p style="color: #2c3e50; line-height: 1.7; margin: 0;">
+                Governance frameworks ensure responsible AI deployment through regular audits, user feedback, and continuous improvement.
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
 
 # Footer
 st.markdown("---")
