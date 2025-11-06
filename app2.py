@@ -559,6 +559,45 @@ def load_diffusion_model():
         return None
 
 # ==================== API BACKEND FUNCTIONS ====================
+def clean_api_response(text):
+    """Clean API response by removing unwanted artifacts and formatting issues"""
+    if not text:
+        return text
+    
+    # Remove common artifacts that appear in API responses
+    import re
+    
+    # Remove patterns like "HereHereassistant<|end_header_id|>" and variations
+    text = re.sub(r'HereHereassistant<\|end_header_id\|>', '', text, flags=re.IGNORECASE)
+    text = re.sub(r'HereHereassistant', '', text, flags=re.IGNORECASE)
+    text = re.sub(r'HereHere', '', text, flags=re.IGNORECASE)
+    text = re.sub(r'<\|end_header_id\|>', '', text, flags=re.IGNORECASE)
+    text = re.sub(r'<\|end.*?\|>', '', text, flags=re.IGNORECASE)  # Remove <|end...|> patterns
+    text = re.sub(r'<\|.*?\|>', '', text)  # Remove any <|...|> patterns
+    
+    # Remove lines that are just artifacts
+    lines = text.split('\n')
+    cleaned_lines = []
+    for line in lines:
+        # Skip lines that are just artifacts
+        if re.match(r'^HereHere.*$', line, re.IGNORECASE):
+            continue
+        if re.match(r'^<\|.*\|>$', line):
+            continue
+        if line.strip() == '' and len(cleaned_lines) > 0 and cleaned_lines[-1].strip() == '':
+            continue  # Skip multiple empty lines
+        cleaned_lines.append(line)
+    
+    text = '\n'.join(cleaned_lines)
+    
+    # Remove multiple consecutive newlines (more than 2)
+    text = re.sub(r'\n{3,}', '\n\n', text)
+    
+    # Remove leading/trailing whitespace
+    text = text.strip()
+    
+    return text
+
 def init_backend_client(use_backup=False):
     """Initialize backend client with primary or backup API key"""
     if api_available:
@@ -614,7 +653,10 @@ def process_with_backend(client, text, task_type, num_questions=5, use_backup=Fa
             top_p=0.9
         )
         
-        return response.choices[0].message.content
+        result = response.choices[0].message.content
+        # Clean the response to remove unwanted artifacts
+        result = clean_api_response(result)
+        return result
     
     except Exception as e:
         error_str = str(e).lower()
@@ -939,6 +981,9 @@ if "GAN" in selected_model:
                 with st.spinner("🛰️ GAN Model processing your content..."):
                     if backend_client:
                         result = process_with_backend(backend_client, text_input, "questions", num_questions)
+                        
+                        # Additional cleaning to ensure no artifacts remain
+                        result = clean_api_response(result)
                         
                         st.markdown("---")
                         st.markdown("### ❓ Generated Questions")
