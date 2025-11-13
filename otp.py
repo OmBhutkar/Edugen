@@ -13,6 +13,7 @@ import random
 import time
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
+from python_http_client import exceptions as sendgrid_exceptions
 
 # Page configuration
 st.set_page_config(
@@ -103,7 +104,7 @@ if 'auth_page' not in st.session_state:
 # ==================== AUTHENTICATION FUNCTIONS ====================
 
 # SendGrid Configuration
-SENDGRID_API_KEY = "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"
+SENDGRID_API_KEY = "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"
 SENDER_EMAIL = "viduytjammwal23@gmail.com"
 REPLY_EMAIL = "edugen@genai.com"
 USERS_CSV = "users.csv"
@@ -181,7 +182,16 @@ def send_otp_email(email, otp, purpose="verification"):
         response = sg.send(message)
         return True, "OTP sent successfully!"
     except Exception as e:
-        return False, f"Error sending email: {str(e)}"
+        status_code = getattr(e, "status_code", None)
+        if status_code is None and hasattr(e, "response"):
+            status_code = getattr(getattr(e, "response", None), "status_code", None)
+
+        if isinstance(e, sendgrid_exceptions.UnauthorizedError) or status_code == 401:
+            hint = "SendGrid rejected the request (401 Unauthorized). Verify the API key and sender identity on the deployed environment."
+        else:
+            hint = str(e)
+
+        return False, f"Error sending email: {hint}"
 
 def load_users():
     """Load users from CSV file"""
