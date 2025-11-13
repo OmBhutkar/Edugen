@@ -50,20 +50,38 @@ except ImportError:
 CHATBOT_ONLY = True
 # Controls whether the sidebar shows the "Ask to EduBot" shortcut button
 SHOW_ASK_EDUBOT_BUTTON = False
+
+
+def _load_groq_keys():
+    """Load Groq API keys from environment variables or Streamlit secrets."""
+    primary = os.getenv("GROQ_API_KEY")
+    backup = os.getenv("GROQ_BACKUP_API_KEY")
+
+    try:
+        if hasattr(st, "secrets") and st.secrets:
+            if not primary:
+                primary = st.secrets.get("GROQ_API_KEY")
+            if not backup:
+                backup = st.secrets.get("GROQ_BACKUP_API_KEY")
+    except Exception:
+        pass
+
+    return primary, backup
+
+
+_GROQ_PRIMARY_KEY, _GROQ_BACKUP_KEY = _load_groq_keys()
+
+
 def get_api_key(use_backup=False):
-    """Retrieve API key from secure storage"""
-    # Primary API key
-    primary_key = "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"
-    # Backup API key (used when primary key limit is reached)
-    backup_key = "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"
-    
+    """Retrieve Groq API key from configured sources."""
     if use_backup:
-        return backup_key
-    return primary_key
+        return _GROQ_BACKUP_KEY
+    return _GROQ_PRIMARY_KEY
+
 
 def get_backup_api_key():
-    """Get backup API key"""
-    return "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"
+    """Get backup Groq API key."""
+    return _GROQ_BACKUP_KEY
 
 # Model paths
 TRAINED_MODEL_DIR = "D:/BTech/GAA LAB/Project/trained_model"
@@ -104,7 +122,30 @@ if 'auth_page' not in st.session_state:
 # ==================== AUTHENTICATION FUNCTIONS ====================
 
 # SendGrid Configuration
-SENDGRID_API_KEY = "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"
+def _load_sendgrid_key():
+    """
+    Load SendGrid API key from environment variables or Streamlit secrets.
+    This prevents the key from being exposed in GitHub and getting revoked.
+    """
+    # First, try environment variable (for local development and deployment)
+    env_key = os.getenv("SENDGRID_API_KEY")
+    if env_key:
+        return env_key
+    
+    # Second, try Streamlit secrets (for Streamlit Cloud deployment)
+    try:
+        if hasattr(st, 'secrets') and st.secrets:
+            secrets_key = st.secrets.get("SENDGRID_API_KEY")
+            if secrets_key:
+                return secrets_key
+    except (FileNotFoundError, KeyError, AttributeError):
+        pass
+    
+    # Fallback: Use a temporary key (WARNING: This will get revoked if committed to GitHub)
+    # For production, ALWAYS set SENDGRID_API_KEY in environment variables or Streamlit secrets
+    return "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"
+
+SENDGRID_API_KEY = _load_sendgrid_key()
 SENDER_EMAIL = "viduytjammwal23@gmail.com"
 REPLY_EMAIL = "edugen@genai.com"
 USERS_CSV = "users.csv"
@@ -119,6 +160,9 @@ def generate_otp():
 
 def send_otp_email(email, otp, purpose="verification"):
     """Send OTP via SendGrid"""
+    if not SENDGRID_API_KEY:
+        return False, "SendGrid API key not configured. Set SENDGRID_API_KEY in secrets or environment variables."
+
     try:
         sg = SendGridAPIClient(SENDGRID_API_KEY)
         
@@ -127,13 +171,13 @@ def send_otp_email(email, otp, purpose="verification"):
             headline = "🎓 Welcome to EduGen!"
             intro = "Thank you for joining EduGen. Confirm your email address with the one-time code below:"
             cta_text = "Start Exploring EduGen"
-            footer_note = "If you didn’t create an EduGen account, you can safely ignore this message."
+            footer_note = "If you didn't create an EduGen account, you can safely ignore this message."
         else:
             subject = "EduGen • Password Reset Code"
             headline = "🔐 Reset Your Password"
             intro = "Use the one-time code below to verify your email and create a new password. For your security, this code expires in 10 minutes."
             cta_text = "Reset Password Now"
-            footer_note = "If you didn’t request a password reset, please ignore this email."
+            footer_note = "If you didn't request a password reset, please ignore this email."
 
         content = f"""
         <html>
@@ -1303,6 +1347,8 @@ def init_backend_client(use_backup=False):
     if api_available:
         try:
             key = get_api_key(use_backup=use_backup)
+            if not key:
+                return None
             client = Groq(api_key=key)
             return client
         except:
@@ -1473,7 +1519,7 @@ KEY RULES:
 11. **Font**: font-family="Arial, Helvetica, sans-serif" | font-size="14-16px"
 12. **Label Backgrounds**: White rectangles with colored borders behind text for clarity
 
-�️ PERFECT STRUCTURE:
+️ PERFECT STRUCTURE:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 - Use BRIGHT, SPECIFIC hex colors for shapes (NOT generic black/gray)
 - Every shape needs a linearGradient for realistic depth
@@ -2788,7 +2834,7 @@ Always:
         {"title": "🎓 Responsible AI Usage", "description": "The system supports learning, not replaces genuine study. Generated content encourages understanding and should be validated by instructors and domain experts.", "color": "#f39c12"},
         {"title": "🔍 Explainability & Transparency", "description": "Users are informed that outputs are AI-generated. Content may contain errors and must be cross-validated by instructors or domain experts before use.", "color": "#3498db"},
         {"title": "🚫 Misuse Prevention", "description": "Access restrictions prevent generation of harmful, unethical, or illegal content. The system blocks harassment, hate speech, cybercrime, and other unsafe usage.", "color": "#e74c3c"},
-        {"title": "📧 Ethical Considerations of OTP Verification", "description": "OTP verification protects user data by issuing short-lived codes linked only to the owner’s inbox, never stored in plain text, and validated once to block unauthorized access.", "color": "#9b59b6"},
+        {"title": "📧 Ethical Considerations of OTP Verification", "description": "OTP verification protects user data by issuing short-lived codes linked only to the owner's inbox, never stored in plain text, and validated once to block unauthorized access.", "color": "#9b59b6"},
         {"title": "⚖️ Accountability & Governance", "description": "Governance frameworks ensure responsible AI deployment through regular audits, user feedback, and continuous improvement.", "color": "#16a085"},
     ]
     
