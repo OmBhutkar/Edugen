@@ -104,7 +104,7 @@ if 'auth_page' not in st.session_state:
 # ==================== AUTHENTICATION FUNCTIONS ====================
 
 # SendGrid Configuration
-SENDGRID_API_KEY = "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"
+SENDGRID_API_KEY = "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"
 SENDER_EMAIL = "viduytjammwal23@gmail.com"
 REPLY_EMAIL = "edugen@genai.com"
 USERS_CSV = "users.csv"
