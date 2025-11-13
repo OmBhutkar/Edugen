@@ -447,24 +447,24 @@ def show_auth_page():
         nav_styles = """
         <style>
         .auth-nav-card button {
-            background: rgba(15,23,42,0.7);
-            border: 1px solid rgba(255,255,255,0.12);
-            border-radius: 18px;
-            padding: 12px 20px;
-            color: #cbd5f5;
+            background: transparent;
+            border: 1px solid rgba(226,232,240,0.25);
+            border-radius: 999px;
+            padding: 12px 30px;
+            color: #e2e8f0;
             font-weight: 600;
-            letter-spacing: 0.4px;
-            backdrop-filter: blur(8px);
+            letter-spacing: 0.45px;
+            backdrop-filter: blur(10px);
         }
         .auth-nav-card button:hover {
-            border-color: rgba(99,102,241,0.7);
-            box-shadow: 0 12px 24px rgba(99,102,241,0.25);
+            border-color: rgba(99,102,241,0.85);
+            box-shadow: 0 14px 28px rgba(99,102,241,0.25);
         }
         .auth-nav-card.active button {
-            background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
-            color: white;
-            border: none;
-            box-shadow: 0 16px 32px rgba(99,102,241,0.35);
+            background: rgba(99,102,241,0.15);
+            border-color: rgba(99,102,241,0.65);
+            color: #f8fafc;
+            box-shadow: 0 18px 34px rgba(99,102,241,0.3);
         }
         </style>
         """
@@ -488,7 +488,6 @@ def show_auth_page():
             col.markdown(f'<div class="{wrapper_class}">', unsafe_allow_html=True)
             if col.button(label, key=f"auth_nav_{key_name}", use_container_width=True):
                 st.session_state.auth_page = key_name
-                st.experimental_rerun()
             col.markdown("</div>", unsafe_allow_html=True)
         
         # LOGIN VIEW
