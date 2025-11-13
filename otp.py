@@ -444,11 +444,55 @@ def show_auth_page():
             
             return
         
-        # Page selection tabs
-        tab1, tab2, tab3 = st.tabs(["🔐 Login", "📝 Sign Up", "🔑 Forgot Password"])
+        nav_styles = """
+        <style>
+        .auth-nav-card button {
+            background: rgba(15,23,42,0.7);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 18px;
+            padding: 12px 20px;
+            color: #cbd5f5;
+            font-weight: 600;
+            letter-spacing: 0.4px;
+            backdrop-filter: blur(8px);
+        }
+        .auth-nav-card button:hover {
+            border-color: rgba(99,102,241,0.7);
+            box-shadow: 0 12px 24px rgba(99,102,241,0.25);
+        }
+        .auth-nav-card.active button {
+            background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+            color: white;
+            border: none;
+            box-shadow: 0 16px 32px rgba(99,102,241,0.35);
+        }
+        </style>
+        """
+        st.markdown(nav_styles, unsafe_allow_html=True)
+
+        view_order = ["login", "signup", "forgot_password"]
+        view_labels = {
+            "login": "🔐 Login",
+            "signup": "📝 Sign Up",
+            "forgot_password": "🔑 Forgot Password"
+        }
+        if 'auth_page' not in st.session_state:
+            st.session_state.auth_page = "login"
+        if st.session_state.auth_page not in view_order:
+            st.session_state.auth_page = "login"
+
+        nav_columns = st.columns(len(view_order))
+        for key_name, col in zip(view_order, nav_columns):
+            label = view_labels[key_name]
+            wrapper_class = "auth-nav-card active" if st.session_state.auth_page == key_name else "auth-nav-card"
+            col.markdown(f'<div class="{wrapper_class}">', unsafe_allow_html=True)
+            if col.button(label, key=f"auth_nav_{key_name}", use_container_width=True):
+                st.session_state.auth_page = key_name
+                st.experimental_rerun()
+            col.markdown("</div>", unsafe_allow_html=True)
         
-        # LOGIN TAB
-        with tab1:
+        # LOGIN VIEW
+        if st.session_state.auth_page == "login":
             st.markdown('<h2 class="auth-title">🔐 Login</h2>', unsafe_allow_html=True)
             st.markdown('<div class="auth-divider"></div>', unsafe_allow_html=True)
             
@@ -467,36 +511,29 @@ def show_auth_page():
                 login_email = st.text_input("📧 Email Address", key="login_email")
             login_password = st.text_input("🔒 Password", type="password", key="login_password")
             
-            col_login1, col_login2 = st.columns(2)
-            with col_login1:
-                if st.button("🚀 Login", use_container_width=True, type="primary", key="btn_login"):
-                    if login_email and login_password:
-                        if verify_user(login_email, login_password):
-                            st.session_state.authenticated = True
-                            st.session_state.user_email = login_email
-                            
-                            # Show success card
-                            show_success_card(
-                                "Login Successful!",
-                                f"Welcome back, {login_email}! You have successfully logged into EduGen.",
-                                "🎉"
-                            )
-                            st.balloons()
-                            st.info("🔄 Redirecting to the main application...")
-                            time.sleep(2)
-                            st.rerun()
-                        else:
-                            st.error("❌ Invalid email or password!")
+            if st.button("🚀 Login", use_container_width=True, type="primary", key="btn_login"):
+                if login_email and login_password:
+                    if verify_user(login_email, login_password):
+                        st.session_state.authenticated = True
+                        st.session_state.user_email = login_email
+                        
+                        # Show success card
+                        show_success_card(
+                            "Login Successful!",
+                            f"Welcome back, {login_email}! You have successfully logged into EduGen.",
+                            "🎉"
+                        )
+                        st.balloons()
+                        st.info("🔄 Redirecting to the main application...")
+                        time.sleep(2)
+                        st.rerun()
                     else:
-                        st.warning("⚠️ Please fill in all fields!")
-            
-            with col_login2:
-                if st.button("🔄 Switch to Sign Up", use_container_width=True, key="btn_switch_signup"):
-                    st.session_state.auth_page = 'signup'
-                    st.rerun()
+                        st.error("❌ Invalid email or password!")
+                else:
+                    st.warning("⚠️ Please fill in all fields!")
         
-        # SIGNUP TAB
-        with tab2:
+        # SIGNUP VIEW
+        elif st.session_state.auth_page == "signup":
             st.markdown('<h2 class="auth-title">📝 Create Account</h2>', unsafe_allow_html=True)
             st.markdown('<div class="auth-divider"></div>', unsafe_allow_html=True)
             
@@ -617,8 +654,8 @@ def show_auth_page():
                         else:
                             st.error(f"❌ {message}")
         
-        # FORGOT PASSWORD TAB
-        with tab3:
+        # FORGOT PASSWORD VIEW
+        else:
             st.markdown('<h2 class="auth-title">🔑 Forgot Password</h2>', unsafe_allow_html=True)
             st.markdown('<div class="auth-divider"></div>', unsafe_allow_html=True)
             
