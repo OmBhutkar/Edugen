@@ -84,24 +84,7 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 4. Set Up API Key
-Create a `.env` file in the project root or update the `get_api_key()` function in `app.py`:
-```python
-def get_api_key():
-    """Retrieve API key from secure storage"""
-    return "your-groq-api-key-here"
-```
-
-Or use environment variables:
-```bash
-# Windows
-set GROQ_API_KEY=your-api-key-here
-
-# Linux/Mac
-export GROQ_API_KEY=your-api-key-here
-```
-
-### 5. (Optional) Download Pre-trained Models
+### 4. (Optional) Download Pre-trained Models
 If you have trained models, place them in the `trained_model/` directory:
 ```
 trained_model/
