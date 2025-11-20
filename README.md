@@ -58,7 +58,7 @@
 
 - Python 3.8 or higher
 - CUDA-compatible GPU (optional, for faster processing)
-- Groq API key (for backend services)
+
 
 ## 🔧 Installation
 
@@ -236,19 +236,6 @@ heroku config:set GROQ_API_KEY=your-api-key
 2. Add environment variable `GROQ_API_KEY`
 3. Deploy automatically
 
-## 🔑 API Configuration
-
-### Groq API
-1. Sign up at [Groq Cloud](https://console.groq.com)
-2. Create a new API key
-3. Set the key in your environment or code
-4. Free tier includes 100,000 tokens/day
-
-### Rate Limits
-- **Questions Generation**: ~500-2,000 tokens per request
-- **Summarization**: ~1,000-2,000 tokens per request
-- **Study Notes**: ~1,500-2,000 tokens per request
-- **Illustration**: ~1,500-6,000 tokens per request
 
 ## 🎨 Customization
 
@@ -341,7 +328,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📧 Contact
 
-- **Author**: Sahil Karne,Sachin Jadhav,Yash Gunjal,Om Bhutkar ,Aryan Tamboli
+- **Author**: Sahil Karne (Sahil.karne@mitaoe.ac.in) , Sachin Jadhav (sachin.jadhav@mitaoe.ac.in) ,Yash Gunjal (yash.gunjal@mitaoe.ac.in) ,Om Bhutkar (om.bhutkar@mitaoe.ac.in) ,Aryan Tamboli (aryan.tamboli@mitaoe.ac.in)
 - **PRN**:202201040086,202201040080,202201040106,202201040111,202201040088
 
 ## 🔮 Future Enhancements
