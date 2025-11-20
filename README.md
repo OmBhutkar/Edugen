@@ -328,7 +328,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📧 Contact
 
-- **Author**: Sahil Karne (Sahil.karne@mitaoe.ac.in) , Sachin Jadhav (sachin.jadhav@mitaoe.ac.in) ,Yash Gunjal (yash.gunjal@mitaoe.ac.in) ,Om Bhutkar (om.bhutkar@mitaoe.ac.in) ,Aryan Tamboli (aryan.tamboli@mitaoe.ac.in)
+- **Author**: Sahil Karne (sahil.karne@mitaoe.ac.in) , Sachin Jadhav (sachin.jadhav@mitaoe.ac.in) ,Yash Gunjal (yash.gunjal@mitaoe.ac.in) ,Om Bhutkar (om.bhutkar@mitaoe.ac.in) ,Aryan Tamboli (aryan.tamboli@mitaoe.ac.in)
 - **PRN**:202201040086,202201040080,202201040106,202201040111,202201040088
 
 ## 🔮 Future Enhancements
